@@ -1,10 +1,13 @@
 import React, { useState } from "react";
+import { ReactTyped } from "react-typed";
+
 
 function App() {
   const [input, setInput] = useState("");
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [length, setLength] = useState("medium");
 
   const summarize = async () => {
     if (!input.trim()) return;
@@ -12,23 +15,25 @@ function App() {
     setError("");
     setSummary("");
 
+    let lengthHint = "";
+    if (length === "short") lengthHint = "Summarize briefly in 1-2 sentences.";
+    else if (length === "medium")
+      lengthHint = "Summarize concisely in 3-4 sentences.";
+    else lengthHint = "Summarize in detail with key points.";
+
     try {
       const response = await fetch("/api/summarize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs: input }),
-      }
-    );
-
-
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: `${input}\n\n${lengthHint}`,
+        }),
+      });
 
       const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // HF sometimes returns an array of objects
+      if (data.error) throw new Error(data.error);
       setSummary(data[0]?.summary_text || "No summary returned.");
     } catch (err) {
       setError("Error: " + err.message);
@@ -39,20 +44,25 @@ function App() {
 
   const copySummary = () => {
     navigator.clipboard.writeText(summary);
-    alert("Summary copied to clipboard!");
+    alert("✅ Summary copied to clipboard!");
   };
 
   return (
-    <div style={{
-      fontFamily: "system-ui, sans-serif",
-      padding: "30px",
-      maxWidth: "700px",
-      margin: "auto",
-      textAlign: "center"
-    }}>
+    <div
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        padding: "30px",
+        maxWidth: "750px",
+        margin: "auto",
+        textAlign: "center",
+      }}
+    >
       <h1>📰 AI News Summarizer</h1>
-      <p>Paste your article text or paragraph below and click “Summarize”.</p>
+      <p style={{ color: "#555" }}>
+        Paste your article text below and let AI summarize it instantly.
+      </p>
 
+      {/* Input box */}
       <textarea
         rows="8"
         placeholder="Paste text here..."
@@ -67,7 +77,22 @@ function App() {
         }}
       />
 
+      {/* Summary length selector */}
       <div style={{ marginTop: "10px" }}>
+        <label style={{ marginRight: "10px" }}>Summary length:</label>
+        <select
+          value={length}
+          onChange={(e) => setLength(e.target.value)}
+          style={{ padding: "6px", borderRadius: "6px" }}
+        >
+          <option value="short">Short</option>
+          <option value="medium">Medium</option>
+          <option value="detailed">Detailed</option>
+        </select>
+      </div>
+
+      {/* Summarize button */}
+      <div style={{ marginTop: "15px" }}>
         <button
           onClick={summarize}
           disabled={loading || !input.trim()}
@@ -86,10 +111,11 @@ function App() {
 
       {error && <p style={{ color: "red", marginTop: "15px" }}>{error}</p>}
 
+      {/* Summary output with typing animation */}
       {summary && (
         <div
           style={{
-            marginTop: "20px",
+            marginTop: "25px",
             padding: "15px",
             backgroundColor: "#f9f9f9",
             border: "1px solid #ddd",
@@ -97,8 +123,13 @@ function App() {
             textAlign: "left",
           }}
         >
-          <h3>Summary:</h3>
-          <p>{summary}</p>
+          <h3>🧠 Summary:</h3>
+          <ReactTyped
+            strings={[summary]}
+            typeSpeed={15}
+            showCursor={false}
+          />
+          <br />
           <button
             onClick={copySummary}
             style={{
@@ -116,12 +147,23 @@ function App() {
         </div>
       )}
 
+      {/* How it works section */}
+      <section style={{ marginTop: "40px", textAlign: "left" }}>
+        <h2>⚙️ How It Works</h2>
+        <p>
+          This app uses Hugging Face’s <b>BART-large-CNN</b> transformer model
+          to summarize text. When you click “Summarize”, your input text is sent
+          to a secure Vercel serverless API route, which communicates with
+          Hugging Face. The AI then returns a concise summary based on your
+          selected detail level.
+        </p>
+      </section>
+
       <footer style={{ marginTop: "30px", fontSize: "0.9em", color: "#555" }}>
-        <p>Model: facebook/bart-large-cnn (via Hugging Face Inference API)</p>
+        <p>Built with ❤️ using React + Vercel + Hugging Face API</p>
       </footer>
     </div>
   );
 }
 
 export default App;
-
